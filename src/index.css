@@ -1,0 +1,119 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  font-family: 'Poppins', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-text: #0f172a;
+  --color-muted: #475569;
+  --color-card: #ffffff;
+  --color-primary: #0D3B91;
+  --color-secondary: #E53935;
+  --radius: 1.75rem;
+  /* Button / CTA tokens */
+  --btn-primary-bg: #0D3B91;
+  --btn-primary-bg-hover: #082d71;
+  --btn-primary-bg-active: #062555;
+  --btn-primary-text: #ffffff;
+
+  --btn-secondary-bg: #ffffff;
+  --btn-secondary-border: #E53935;
+  --btn-secondary-bg-hover: #FFEBEE;
+  --btn-secondary-text: #E53935;
+
+  --focus-ring: 0 0 0 4px rgba(13, 59, 145, 0.18);
+
+  /* ripple color default */
+  --ripple-color: rgba(255,255,255,0.35);
+}
+
+/* Dark theme tokens */
+.dark {
+  --color-surface: #050712;
+  --color-bg: #050712;
+  --color-text: #f8fafc;
+  --color-muted: #94a3b8;
+  --color-card: #0f172a;
+  --color-primary: #0D3B91;
+  --color-secondary: #E53935;
+  --btn-primary-text: #ffffff;
+  --btn-secondary-text: #E53935;
+  --ripple-color: rgba(255,255,255,0.18);
+  color-scheme: dark;
+}
+
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--color-text);
+    background: var(--color-surface);
+    font-family: inherit;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/90 border border-slate-200 shadow-soft rounded-2xl;
+  }
+
+  .section-title {
+    @apply text-3xl md:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight dark:text-white;
+  }
+
+  .card-modern {
+    @apply rounded-2xl bg-white shadow-soft border border-slate-100 overflow-hidden transform transition-transform hover:-translate-y-2 hover:shadow-lg dark:bg-slate-900 dark:border-slate-800;
+  }
+
+  .search-input {
+    @apply px-4 py-2 rounded-full border border-slate-200 bg-white/90 text-slate-900 focus:outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:placeholder:text-slate-400;
+  }
+
+  .ripple {
+    position: absolute;
+    border-radius: 9999px;
+    transform: scale(0);
+    animation: ripple 600ms linear;
+    pointer-events: none;
+    background: var(--ripple-color, rgba(255,255,255,0.35));
+    opacity: 0.9;
+  }
+
+  @keyframes ripple {
+    to {
+      transform: scale(4);
+      opacity: 0;
+    }
+  }
+
+  .hero-ill {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+    100% { transform: translateY(0); }
+  }
+}
