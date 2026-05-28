@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Button from '../design-system/Button';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -14,8 +14,10 @@ const menuItems = [
 export default function Header() {
   const [isDark, setIsDark] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { cartCount, setIsCartOpen } = useCart();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const stored = localStorage.getItem('theme');
@@ -34,6 +36,15 @@ export default function Header() {
     setIsDark(next);
     document.documentElement.classList.toggle('dark', next);
     localStorage.setItem('theme', next ? 'dark' : 'light');
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/buscar?q=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchQuery('');
+      setMobileMenuOpen(false);
+    }
   };
 
   return (
@@ -66,7 +77,19 @@ export default function Header() {
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
-          <input className="search-input w-64 !bg-white/50 dark:!bg-white/5 !border-slate-200 dark:!border-white/10 !text-slate-900 dark:!text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:!border-primary/50 backdrop-blur-md shadow-inner transition-colors" placeholder="Buscar productos, recetas..." />
+          <form onSubmit={handleSearch} className="relative">
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="search-input w-64 !bg-white/50 dark:!bg-white/5 !border-slate-200 dark:!border-white/10 !text-slate-900 dark:!text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:!border-primary/50 backdrop-blur-md shadow-inner transition-colors"
+              placeholder="Buscar productos..."
+            />
+            {searchQuery && (
+              <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors text-sm font-medium">
+                🔍
+              </button>
+            )}
+          </form>
           <button onClick={() => setIsCartOpen(true)} className="relative flex items-center gap-2 rounded-full border border-slate-200 dark:border-white/10 bg-white/50 dark:bg-white/5 px-4 py-2 text-sm font-medium shadow-sm transition hover:bg-slate-100 dark:hover:bg-white/10 text-slate-900 dark:text-white backdrop-blur-md">
             <span>🛒</span>
             <span>Carrito</span>
@@ -100,7 +123,14 @@ export default function Header() {
               </Link>
             ))}
             <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-white/5">
-              <input className="search-input w-full !bg-slate-100 dark:!bg-white/5 !border-slate-200 dark:!border-white/10 !text-slate-900 dark:!text-white placeholder:text-slate-400 focus:!border-primary/50" placeholder="Buscar productos, recetas..." />
+              <form onSubmit={handleSearch}>
+                <input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="search-input w-full !bg-slate-100 dark:!bg-white/5 !border-slate-200 dark:!border-white/10 !text-slate-900 dark:!text-white placeholder:text-slate-400 focus:!border-primary/50"
+                  placeholder="Buscar productos..."
+                />
+              </form>
               <div className="flex gap-3">
                 <button onClick={() => { setIsCartOpen(true); setMobileMenuOpen(false); }} className="relative flex-1 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-3 text-sm font-medium text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 flex flex-col items-center justify-center transition-colors">
                   <div className="flex gap-2">

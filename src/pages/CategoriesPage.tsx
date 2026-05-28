@@ -1,21 +1,39 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
-const allCategories = [
-  { id: 'frutas-verduras', title: 'Frutas & Verduras', subtitle: 'Frescos de temporada', emoji: '🍎' },
-  { id: 'lacteos-huevos', title: 'Lácteos & Huevos', subtitle: 'Calidad garantizada', emoji: '🥛' },
-  { id: 'despensa', title: 'Despensa', subtitle: 'Todo lo esencial', emoji: '🛖' },
-  { id: 'carnes-pescados', title: 'Carnes & Pescados', subtitle: 'Selección premium', emoji: '🍗' },
-  { id: 'panaderia', title: 'Panadería', subtitle: 'Recién horneado', emoji: '🥐' },
-  { id: 'salud-belleza', title: 'Salud & Belleza', subtitle: 'Cuidado personal', emoji: '💅' },
-  { id: 'bebidas', title: 'Bebidas', subtitle: 'Refrescos y jugos', emoji: '🥤' },
-  { id: 'congelados', title: 'Congelados', subtitle: 'Listos para preparar', emoji: '🧊' },
-  { id: 'snacks', title: 'Snacks', subtitle: 'Para picar', emoji: '🥨' },
-  { id: 'bebe', title: 'Bebé', subtitle: 'Cuidado infantil', emoji: '🍼' },
-  { id: 'mascotas', title: 'Mascotas', subtitle: 'Alimentos y accesorios', emoji: '🐶' },
-  { id: 'limpieza', title: 'Limpieza', subtitle: 'Hogar reluciente', emoji: '🧼' },
-];
+interface Subcategory {
+  id: number;
+  name: string;
+  slug: string;
+  category_id: number;
+}
+
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  emoji: string | null;
+  subtitle: string | null;
+  subcategories: Subcategory[];
+}
 
 export default function CategoriesPage() {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('http://localhost:8001/categories')
+      .then(res => res.json())
+      .then(data => {
+        setCategories(data);
+        setIsLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch categories:', err);
+        setIsLoading(false);
+      });
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white pb-20 transition-colors duration-300">
       <div className="relative overflow-hidden py-16">
@@ -34,24 +52,44 @@ export default function CategoriesPage() {
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3 lg:grid-cols-4">
-          {allCategories.map((c) => (
-            <Link to={`/categorias/${c.id}`} key={c.id} className="group rounded-[2rem] border border-slate-200/50 dark:border-white/10 bg-white/60 dark:bg-white/5 p-7 flex flex-col justify-between cursor-pointer shadow-soft backdrop-blur-xl hover:shadow-lg dark:hover:bg-white/10 transition-all hover:-translate-y-2 duration-300">
-              <div>
-                <div className="w-16 h-16 rounded-2xl bg-white/80 dark:bg-white/10 border border-slate-200 dark:border-white/10 flex items-center justify-center text-3xl shadow-sm group-hover:shadow-md group-hover:scale-110 transition-all duration-300">
-                  {c.emoji}
+        {isLoading ? (
+          <div className="flex justify-center py-20">
+            <div className="w-12 h-12 border-4 border-secondary/30 border-t-secondary rounded-full animate-spin" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3 lg:grid-cols-4">
+            {categories.map((c) => (
+              <Link to={`/categorias/${c.slug}`} key={c.id} className="group rounded-[2rem] border border-slate-200/50 dark:border-white/10 bg-white/60 dark:bg-white/5 p-7 flex flex-col justify-between cursor-pointer shadow-soft backdrop-blur-xl hover:shadow-lg dark:hover:bg-white/10 transition-all hover:-translate-y-2 duration-300">
+                <div>
+                  <div className="w-16 h-16 rounded-2xl bg-white/80 dark:bg-white/10 border border-slate-200 dark:border-white/10 flex items-center justify-center text-3xl shadow-sm group-hover:shadow-md group-hover:scale-110 transition-all duration-300">
+                    {c.emoji}
+                  </div>
+                  <h3 className="mt-5 text-xl font-bold text-slate-900 dark:text-white leading-tight group-hover:text-primary dark:group-hover:text-primary-100 transition-colors">{c.name}</h3>
+                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{c.subtitle}</p>
+                  {c.subcategories.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {c.subcategories.slice(0, 3).map(sub => (
+                        <span key={sub.id} className="text-xs bg-slate-100 dark:bg-white/10 border border-slate-200/50 dark:border-white/5 px-2 py-0.5 rounded-full text-slate-500 dark:text-slate-400">
+                          {sub.name}
+                        </span>
+                      ))}
+                      {c.subcategories.length > 3 && (
+                        <span className="text-xs bg-slate-100 dark:bg-white/10 border border-slate-200/50 dark:border-white/5 px-2 py-0.5 rounded-full text-slate-500 dark:text-slate-400">
+                          +{c.subcategories.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <h3 className="mt-5 text-xl font-bold text-slate-900 dark:text-white leading-tight group-hover:text-primary dark:group-hover:text-primary-100 transition-colors">{c.title}</h3>
-                <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{c.subtitle}</p>
-              </div>
-              <div className="mt-7">
-                <div className="flex w-full items-center justify-center rounded-full font-semibold transition-all px-6 py-3 bg-white/50 dark:bg-white/5 text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 group-hover:bg-white/80 dark:group-hover:bg-white/20 backdrop-blur-md">
-                  Ver productos
+                <div className="mt-7">
+                  <div className="flex w-full items-center justify-center rounded-full font-semibold transition-all px-6 py-3 bg-white/50 dark:bg-white/5 text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 group-hover:bg-white/80 dark:group-hover:bg-white/20 backdrop-blur-md">
+                    Ver productos
+                  </div>
                 </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

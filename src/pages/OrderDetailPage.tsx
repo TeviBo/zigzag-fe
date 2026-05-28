@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 interface OrderItem {
   id: number;
   product_id: number;
-  quantity: int;
+  quantity: number;
   unit_price: number;
   product_name: string | null;
   product_image: string | null;
@@ -17,6 +17,8 @@ interface Order {
   customer_email: string;
   status: string;
   total_amount: number;
+  coupon_code: string | null;
+  discount_amount: number;
   created_at: string;
   items: OrderItem[];
 }
@@ -156,8 +158,14 @@ export default function OrderDetailPage() {
             <div className="w-full max-w-sm bg-primary-950/80 rounded-2xl p-6 border border-white/5">
               <div className="flex justify-between text-slate-400 mb-2">
                 <span>Subtotal</span>
-                <span>${order.total_amount.toFixed(2)}</span>
+                <span>${(order.total_amount + (order.discount_amount || 0)).toFixed(2)}</span>
               </div>
+              {order.coupon_code && (
+                <div className="flex justify-between text-secondary mb-2">
+                  <span>Descuento ({order.coupon_code})</span>
+                  <span>-${order.discount_amount.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-slate-400 mb-4">
                 <span>Envío</span>
                 <span className="text-green-400">Gratis</span>

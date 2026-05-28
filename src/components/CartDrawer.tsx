@@ -1,10 +1,12 @@
 import { useCart } from '../context/CartContext';
 import Button from '../design-system/Button';
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 
 export default function CartDrawer() {
-  const { isCartOpen, setIsCartOpen, items, updateQuantity, cartTotal, clearCart } = useCart();
+  const { isCartOpen, setIsCartOpen, items, updateQuantity, cartTotal, clearCart, coupon, setCoupon, discountAmount, finalTotal } = useCart();
   const navigate = useNavigate();
+  const [couponError, setCouponError] = useState<string | null>(null);
 
   const handleCheckout = () => {
     setIsCartOpen(false);
@@ -64,11 +66,83 @@ export default function CartDrawer() {
         </div>
 
         {items.length > 0 && (
-          <div className="p-6 border-t border-white/10 bg-primary-950/80 backdrop-blur-xl">
-            <div className="flex justify-between mb-4 text-lg">
-              <span className="text-white/70">Subtotal</span>
-              <span className="font-bold text-xl">${cartTotal.toFixed(2)}</span>
+          <div className="p-6 border-t border-white/10 bg-primary-950/80 backdrop-blur-xl space-y-4">
+            
+            {!coupon ? (
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setCouponError(null);
+                  const form = e.target as HTMLFormElement;
+                  const input = form.elements.namedItem('code') as HTMLInputElement;
+                  const code = input.value.trim();
+                  if (code) {
+                    fetch('http://localhost:8002/coupons/validate', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ code })
+                    })
+                    .then(res => {
+                      if (!res.ok) throw new Error('Cupón inválido');
+                      return res.json();
+                    })
+                    .then(data => {
+                      setCoupon(data);
+                      input.value = '';
+                    })
+                    .catch(err => {
+                      setCouponError('Cupón inválido o expirado.');
+                    });
+                  }
+                }}
+                className="flex flex-col gap-2"
+              >
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    name="code"
+                    placeholder="Código de descuento" 
+                    className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-white placeholder:text-white/40 focus:outline-none focus:border-secondary transition-colors uppercase"
+                  />
+                  <Button type="submit" variant="primary" className="!py-2 !px-4">Aplicar</Button>
+                </div>
+                {couponError && (
+                  <p className="text-red-400 text-sm pl-2 animate-pulse">{couponError}</p>
+                )}
+              </form>
+            ) : (
+              <div className="flex items-center justify-between bg-secondary/10 border border-secondary/20 rounded-xl px-4 py-2">
+                <div className="flex items-center gap-2 text-secondary">
+                  <span>🎟️</span>
+                  <span className="font-bold">{coupon.code}</span>
+                </div>
+                <button 
+                  onClick={() => setCoupon(null)} 
+                  className="text-white/50 hover:text-white transition-colors text-sm"
+                >
+                  Quitar
+                </button>
+              </div>
+            )}
+
+            <div className="space-y-2 border-b border-white/10 pb-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-white/60">Subtotal</span>
+                <span>${cartTotal.toFixed(2)}</span>
+              </div>
+              {coupon && (
+                <div className="flex justify-between text-sm text-secondary">
+                  <span>Descuento</span>
+                  <span>-${discountAmount.toFixed(2)}</span>
+                </div>
+              )}
             </div>
+            
+            <div className="flex justify-between text-lg">
+              <span className="text-white/70">Total</span>
+              <span className="font-bold text-xl">${finalTotal.toFixed(2)}</span>
+            </div>
+
             <Button onClick={handleCheckout} variant="secondary" className="w-full py-4 text-lg font-bold !bg-secondary !text-white !border-secondary hover:!bg-secondary/90 transition-all shadow-lg shadow-secondary/20">
               Proceder al pago
             </Button>

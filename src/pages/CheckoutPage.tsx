@@ -10,82 +10,54 @@ initMercadoPago(import.meta.env.VITE_MP_PUBLIC_KEY || 'TEST-829d5bda-4c07-4282-b
 
 export default function CheckoutPage() {
   const { user } = useAuth();
-  const { items, cartTotal, clearCart } = useCart();
+  const { items, cartTotal, finalTotal, coupon, discountAmount, clearCart } = useCart();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [isSuccess, setIsSuccess] = useState(false);
   const [isMpSuccess, setIsMpSuccess] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('card');
+  const [paymentMethod, setPaymentMethod] = useState('mp_credit');
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const MIN_ORDER_AMOUNT = parseInt(import.meta.env.VITE_MIN_ORDER_AMOUNT || '5000', 10);
 
-  // Require authentication
-  useEffect(() => {
-    const mpStatus = searchParams.get('status');
-    if (!user && mpStatus !== 'approved') {
-      navigate('/login');
-    }
-  }, [user, searchParams, navigate]);
-
-  // Check if returning from MercadoPago with approved status
-  useEffect(() => {
-    const mpStatus = searchParams.get('status');
-    const mpPaymentId = searchParams.get('payment_id');
-    if (mpStatus === 'approved' && mpPaymentId) {
-      clearCart();
-      setIsMpSuccess(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
-
-  if (isMpSuccess) {
-    return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white flex flex-col items-center justify-center p-4 transition-colors duration-300">
-        <div className="w-24 h-24 rounded-full bg-primary/10 border border-primary flex items-center justify-center text-5xl mb-8 animate-bounce">
-          🎉
-        </div>
-        <h1 className="text-4xl md:text-5xl font-black text-center tracking-tighter mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">¡Pago Exitoso!</h1>
-        <p className="text-lg text-slate-600 dark:text-slate-300 text-center max-w-lg mb-8">
-          Tu pago fue procesado correctamente a través de Mercado Pago. Ya estamos preparando tu pedido.
-        </p>
-        <Button onClick={() => navigate('/pedidos')} className="!bg-primary !text-white px-8 py-4 text-lg font-bold shadow-lg shadow-primary/30">
-          Ver mis pedidos
-        </Button>
-      </div>
-    );
-  }
+  // Calculate final total including payment method discount
+  const isDiscountedPayment = paymentMethod === 'mp_debit' || paymentMethod === 'cash';
+  const paymentMethodDiscount = isDiscountedPayment ? finalTotal * 0.15 : 0;
+  const checkoutTotal = finalTotal - paymentMethodDiscount;
 
   const handleConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (cartTotal < MIN_ORDER_AMOUNT) {
-      alert(`El monto mínimo de compra es de $${MIN_ORDER_AMOUNT}. Te faltan $${MIN_ORDER_AMOUNT - cartTotal}.`);
+    if (checkoutTotal < MIN_ORDER_AMOUNT) {
+      alert(`El monto mínimo de compra es de $${MIN_ORDER_AMOUNT}. Te faltan $${MIN_ORDER_AMOUNT - checkoutTotal}.`);
       return;
     }
 
-    if (paymentMethod === 'mercadopago') {
-      setIsLoading(true);
-      try {
-        const payload = {
-          customer_email: user?.email,
-          items: items.map(item => ({ product_id: item.id, quantity: item.quantity }))
-        };
+    setIsLoading(true);
+    try {
+      const payload = {
+        customer_email: user?.email,
+        items: items.map(item => ({ product_id: item.id, quantity: item.quantity })),
+        coupon_code: coupon ? coupon.code : null,
+        payment_method: paymentMethod
+      };
+
+      if (paymentMethod === 'mp_credit' || paymentMethod === 'mp_debit') {
         const response = await axios.post('http://localhost:8003/checkout/create_preference', payload);
         const { id } = response.data;
         setPreferenceId(id);
-      } catch (error) {
-        console.error("Error creating preference:", error);
-        alert("Hubo un error al iniciar Mercado Pago. Por favor intenta de nuevo.");
-      } finally {
-        setIsLoading(false);
+      } else {
+        await axios.post('http://localhost:8003/checkout/create_order', payload);
+        clearCart();
+        setIsSuccess(true);
       }
-      return;
+    } catch (error) {
+      console.error("Error processing checkout:", error);
+      alert("Hubo un error al procesar el pedido. Por favor intenta de nuevo.");
+    } finally {
+      setIsLoading(false);
     }
-
-    clearCart();
-    setIsSuccess(true);
   };
 
   if (isSuccess) {
@@ -96,7 +68,7 @@ export default function CheckoutPage() {
         </div>
         <h1 className="text-4xl md:text-5xl font-black text-center tracking-tighter mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">¡Pedido Confirmado!</h1>
         <p className="text-lg text-slate-600 dark:text-slate-300 text-center max-w-lg mb-8">
-          Tu pedido ha sido procesado exitosamente y ya lo estamos preparando. Te enviaremos un correo con los detalles del envío.
+          Tu pedido ha sido procesado exitosamente mediante Cuenta Corriente y ya lo estamos preparando. Te enviaremos un correo con los detalles del envío.
         </p>
         <Button onClick={() => navigate('/pedidos')} className="!bg-primary !text-white px-8 py-4 text-lg font-bold shadow-lg shadow-primary/30">
           Ver mis pedidos
@@ -167,24 +139,37 @@ export default function CheckoutPage() {
               <div className="bg-white/80 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-3xl p-6 backdrop-blur-md shadow-sm">
                 <h2 className="text-xl font-bold mb-4">Método de pago</h2>
                 <div className="space-y-4">
-                  <label htmlFor="payment-card" className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${paymentMethod === 'card' ? 'border-primary bg-primary/5 dark:bg-primary/20' : 'border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5'}`}>
-                    <input id="payment-card" type="radio" name="payment" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} className="accent-primary w-5 h-5" />
-                    <span className="font-semibold text-slate-900 dark:text-white">Tarjeta de Crédito / Débito</span>
-                  </label>
-                  <label htmlFor="payment-mp" className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${paymentMethod === 'mercadopago' ? 'border-[#009EE3] bg-[#009EE3]/5 dark:bg-[#009EE3]/20' : 'border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5'}`}>
-                    <input id="payment-mp" type="radio" name="payment" checked={paymentMethod === 'mercadopago'} onChange={() => setPaymentMethod('mercadopago')} className="accent-[#009EE3] w-5 h-5" />
+                  <label htmlFor="payment-mp-credit" className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${paymentMethod === 'mp_credit' ? 'border-[#009EE3] bg-[#009EE3]/5 dark:bg-[#009EE3]/20' : 'border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5'}`}>
+                    <input id="payment-mp-credit" type="radio" name="payment" checked={paymentMethod === 'mp_credit'} onChange={() => setPaymentMethod('mp_credit')} className="accent-[#009EE3] w-5 h-5" />
                     <div className="flex flex-col">
-                      <span className="font-semibold text-[#009EE3]">Mercado Pago o QR</span>
-                      <span className="text-xs text-slate-500 dark:text-slate-400">Paga rápido y seguro con tu app</span>
+                      <span className="font-semibold text-[#009EE3]">Mercado Pago (Tarjeta de Crédito)</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">Paga seguro con tu tarjeta de crédito</span>
+                    </div>
+                  </label>
+                  <label htmlFor="payment-mp-debit" className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${paymentMethod === 'mp_debit' ? 'border-[#009EE3] bg-[#009EE3]/5 dark:bg-[#009EE3]/20' : 'border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5'}`}>
+                    <input id="payment-mp-debit" type="radio" name="payment" checked={paymentMethod === 'mp_debit'} onChange={() => setPaymentMethod('mp_debit')} className="accent-[#009EE3] w-5 h-5" />
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-[#009EE3]">Mercado Pago (Débito o Dinero en cuenta)</span>
+                      <span className="text-xs text-green-600 font-medium">¡15% de descuento adicional!</span>
                     </div>
                   </label>
                   <label htmlFor="payment-cash" className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${paymentMethod === 'cash' ? 'border-primary bg-primary/5 dark:bg-primary/20' : 'border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5'}`}>
                     <input id="payment-cash" type="radio" name="payment" checked={paymentMethod === 'cash'} onChange={() => setPaymentMethod('cash')} className="accent-primary w-5 h-5" />
-                    <span className="font-semibold text-slate-900 dark:text-white">Efectivo contra entrega</span>
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-slate-900 dark:text-white">Efectivo contra entrega</span>
+                      <span className="text-xs text-green-600 font-medium">¡15% de descuento adicional!</span>
+                    </div>
+                  </label>
+                  <label htmlFor="payment-account" className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${paymentMethod === 'account' ? 'border-primary bg-primary/5 dark:bg-primary/20' : 'border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5'}`}>
+                    <input id="payment-account" type="radio" name="payment" checked={paymentMethod === 'account'} onChange={() => setPaymentMethod('account')} className="accent-primary w-5 h-5" />
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-slate-900 dark:text-white">Cuenta Corriente</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">Paga a futuro con tu cuenta del negocio</span>
+                    </div>
                   </label>
                 </div>
 
-                {paymentMethod === 'mercadopago' && (
+                {(paymentMethod === 'mp_credit' || paymentMethod === 'mp_debit') && (
                   <div className="mt-6 p-6 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl flex flex-col items-center justify-center text-slate-900 dark:text-white shadow-inner">
                     <p className="font-bold mb-4 text-center">Continuá con el pago seguro</p>
                     {preferenceId ? (
@@ -228,28 +213,40 @@ export default function CheckoutPage() {
                   <span>Subtotal</span>
                   <span>${cartTotal.toFixed(2)}</span>
                 </div>
+                {coupon && (
+                  <div className="flex justify-between text-secondary">
+                    <span>Descuento ({coupon.code})</span>
+                    <span>-${discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-slate-600 dark:text-slate-300">
                   <span>Envío</span>
                   <span className="text-green-600 dark:text-green-400 font-medium">¡Gratis!</span>
                 </div>
+                {isDiscountedPayment && (
+                  <div className="flex justify-between text-green-600 font-medium">
+                    <span>Descuento 15% (Medio de pago)</span>
+                    <span>-${paymentMethodDiscount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-xl font-bold pt-2 border-t border-slate-200 dark:border-white/10 text-slate-900 dark:text-white">
                   <span>Total</span>
-                  <span>${cartTotal.toFixed(2)}</span>
+                  <span>${checkoutTotal.toFixed(2)}</span>
                 </div>
               </div>
-              {cartTotal < MIN_ORDER_AMOUNT && (
+              {checkoutTotal < MIN_ORDER_AMOUNT && (
                 <div className="w-full bg-red-500/10 border border-red-500/50 text-red-500 text-sm px-4 py-3 rounded-xl mt-4 font-medium text-center">
-                  El mínimo de compra es ${MIN_ORDER_AMOUNT}. Te faltan ${(MIN_ORDER_AMOUNT - cartTotal).toFixed(2)}.
+                  El mínimo de compra es ${MIN_ORDER_AMOUNT}. Te faltan ${(MIN_ORDER_AMOUNT - checkoutTotal).toFixed(2)}.
                 </div>
               )}
 
               <Button
                 form="checkout-form"
                 type="submit"
-                disabled={isLoading || cartTotal < MIN_ORDER_AMOUNT || (paymentMethod === 'mercadopago' && preferenceId !== null)}
-                className={`w-full mt-4 py-4 text-lg font-bold transition-all shadow-lg ${paymentMethod === 'mercadopago' ? '!bg-[#009EE3] !text-white !border-[#009EE3] hover:!bg-[#0089C7] shadow-[#009EE3]/30' : '!bg-primary !text-white !border-primary hover:!bg-primary-600 shadow-primary/20'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                disabled={isLoading || checkoutTotal < MIN_ORDER_AMOUNT || ((paymentMethod === 'mp_credit' || paymentMethod === 'mp_debit') && preferenceId !== null)}
+                className={`w-full mt-4 py-4 text-lg font-bold transition-all shadow-lg ${(paymentMethod === 'mp_credit' || paymentMethod === 'mp_debit') ? '!bg-[#009EE3] !text-white !border-[#009EE3] hover:!bg-[#0089C7] shadow-[#009EE3]/30' : '!bg-primary !text-white !border-primary hover:!bg-primary-600 shadow-primary/20'} disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                {isLoading ? 'Procesando...' : paymentMethod === 'mercadopago' ? 'Generar enlace de pago' : 'Confirmar pedido'}
+                {isLoading ? 'Procesando...' : (paymentMethod === 'mp_credit' || paymentMethod === 'mp_debit') ? 'Generar enlace de pago' : 'Confirmar pedido'}
               </Button>
             </div>
           </div>

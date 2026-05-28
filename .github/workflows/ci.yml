@@ -6,28 +6,51 @@ on:
   pull_request:
     branches: [ main, master ]
 
+# Al delegar el deploy al template, el orquestador solo necesita permisos de lectura por defecto
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  test:
+  build-and-test:
     runs-on: ubuntu-latest
+    outputs:
+      # Si necesitas pasar datos entre jobs del orquestador al template, se declaran aquí
+      publish_dir: ./dist
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
       
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
 
-      - run: npm install
-      # - run: npm run lint
-      # - run: npm run test -- --coverage
-      - run: npm run build
+      - name: Install dependencies
+        run: npm install
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      # - name: Run Lint
+      #   run: npm run lint
+
+      # - name: Run Tests
+      #   run: npm run test -- --coverage
+
+      - name: Build project
+        run: npm run build
+
+      # Almacenamos temporalmente el build en este job para que el template pueda acceder a él
+      - name: Upload Build Folder for Deployment
+        uses: actions/upload-artifact@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist 
-          publish_branch: gh-pages
+          name: production-static-files
+          path: ./dist
+          retention-days: 1
+
+
+  run-deployment:
+    needs: build-and-test
+    # Solo desplegamos si estamos en una rama principal (no en Pull Requests)
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    uses: ./.github/workflows/deploy-template.yml
+    with:
+      publish_dir: ./dist  # Le decimos al template qué carpeta queremos desplegar

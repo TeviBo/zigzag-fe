@@ -1,16 +1,25 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Button from '../design-system/Button';
 
-const categories = [
-  { title: 'Frutas & Verduras', subtitle: 'Frescos de temporada', emoji: '🍎' },
-  { title: 'Lácteos & Huevos', subtitle: 'Calidad garantizada', emoji: '🥛' },
-  { title: 'Despensa', subtitle: 'Todo lo esencial', emoji: '🛖' },
-  { title: 'Carnes & Pescados', subtitle: 'Selección premium', emoji: '🍗' },
-  { title: 'Panadería', subtitle: 'Recién horneado', emoji: '🥐' },
-  { title: 'Salud & Belleza', subtitle: 'Cuidado personal', emoji: '💅' }
-];
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  emoji: string | null;
+  subtitle: string | null;
+}
 
 export default function Categories() {
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    fetch('http://localhost:8001/categories')
+      .then(res => res.json())
+      .then(data => setCategories(data.slice(0, 6)))
+      .catch(err => console.error('Failed to fetch categories:', err));
+  }, []);
+
   return (
     <section id="categorias" className="relative py-20 lg:py-24 bg-white dark:bg-slate-900 text-slate-900 dark:text-white overflow-hidden transition-colors duration-300">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(13,59,145,0.05),_transparent_40%),radial-gradient(circle_at_bottom_left,_rgba(229,57,53,0.05),_transparent_35%)] dark:bg-[radial-gradient(circle_at_top_right,_rgba(13,59,145,0.15),_transparent_40%),radial-gradient(circle_at_bottom_left,_rgba(229,57,53,0.1),_transparent_35%)]" />
@@ -27,18 +36,18 @@ export default function Categories() {
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {categories.map((c) => (
-            <article key={c.title} className="group rounded-[2rem] border border-slate-200/50 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 p-7 flex flex-col justify-between cursor-pointer shadow-soft backdrop-blur-xl hover:shadow-lg dark:hover:bg-white/10 transition-all hover:-translate-y-2 duration-300">
+            <Link to={`/categorias/${c.slug}`} key={c.id} className="group rounded-[2rem] border border-slate-200/50 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 p-7 flex flex-col justify-between cursor-pointer shadow-soft backdrop-blur-xl hover:shadow-lg dark:hover:bg-white/10 transition-all hover:-translate-y-2 duration-300">
               <div>
                 <div className="w-16 h-16 rounded-2xl bg-white/80 dark:bg-white/10 border border-slate-200 dark:border-white/10 flex items-center justify-center text-3xl shadow-sm group-hover:shadow-md group-hover:scale-110 transition-all duration-300">
                   {c.emoji}
                 </div>
-                <h3 className="mt-5 text-xl font-bold text-slate-900 dark:text-white leading-tight group-hover:text-primary dark:group-hover:text-primary-100 transition-colors">{c.title}</h3>
+                <h3 className="mt-5 text-xl font-bold text-slate-900 dark:text-white leading-tight group-hover:text-primary dark:group-hover:text-primary-100 transition-colors">{c.name}</h3>
                 <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{c.subtitle}</p>
               </div>
               <div className="mt-7">
                 <Button variant="secondary" className="w-full justify-center !bg-white/50 dark:!bg-white/5 !text-slate-900 dark:!text-white !border-slate-200 dark:!border-white/10 hover:!bg-white/80 dark:hover:!bg-white/20 backdrop-blur-md transition-colors">Ver categoría</Button>
               </div>
-            </article>
+            </Link>
           ))}
         </div>
       </div>

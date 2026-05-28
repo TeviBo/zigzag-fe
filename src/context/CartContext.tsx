@@ -9,6 +9,12 @@ export type CartItem = {
   emoji?: string;
 };
 
+export type Coupon = {
+  code: string;
+  discount_type: 'percentage' | 'fixed';
+  discount_value: number;
+};
+
 interface CartContextType {
   items: CartItem[];
   addToCart: (item: Omit<CartItem, 'quantity'>) => void;
@@ -19,6 +25,10 @@ interface CartContextType {
   cartTotal: number;
   cartCount: number;
   clearCart: () => void;
+  coupon: Coupon | null;
+  setCoupon: (coupon: Coupon | null) => void;
+  discountAmount: number;
+  finalTotal: number;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -26,6 +36,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [coupon, setCoupon] = useState<Coupon | null>(null);
 
   const addToCart = (newItem: Omit<CartItem, 'quantity'>) => {
     setItems((prev) => {
@@ -56,7 +67,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const cartTotal = items.reduce((total, item) => total + item.price * item.quantity, 0);
   const cartCount = items.reduce((count, item) => count + item.quantity, 0);
   
-  const clearCart = () => setItems([]);
+  let discountAmount = 0;
+  if (coupon) {
+    if (coupon.discount_type === 'percentage') {
+      discountAmount = cartTotal * (coupon.discount_value / 100);
+    } else {
+      discountAmount = coupon.discount_value;
+    }
+  }
+  
+  const finalTotal = Math.max(0, cartTotal - discountAmount);
+
+  const clearCart = () => {
+    setItems([]);
+    setCoupon(null);
+  };
 
   return (
     <CartContext.Provider
@@ -70,6 +95,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
         cartTotal,
         cartCount,
         clearCart,
+        coupon,
+        setCoupon,
+        discountAmount,
+        finalTotal,
       }}
     >
       {children}

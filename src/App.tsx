@@ -16,6 +16,7 @@ import CartDrawer from './components/CartDrawer';
 import RequireAddress from './components/RequireAddress';
 
 import OrderDetailPage from './pages/OrderDetailPage';
+import SearchResultsPage from './pages/SearchResultsPage';
 
 export default function App() {
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'placeholder';
@@ -33,6 +34,7 @@ export default function App() {
               <Route path="/" element={<Home />} />
               <Route path="/categorias" element={<CategoriesPage />} />
               <Route path="/categorias/:id" element={<CategoryDetailPage />} />
+              <Route path="/buscar" element={<SearchResultsPage />} />
               <Route path="/checkout" element={<RequireAddress><CheckoutPage /></RequireAddress>} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
